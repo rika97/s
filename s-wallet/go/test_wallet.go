@@ -1,11 +1,21 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
+	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
+	"math/big"
 	"net/http"
+	"os"
+	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // RPCPayload represents the JSON payload for the RPC request
@@ -58,9 +68,163 @@ func CheckBalance(address string, rpcURL string) {
 	fmt.Println("Balance:", rpcResponse.Result)
 }
 
-func main() {
-	address := "0xb5B353B145F95d0ca364d92aEA24514f6352f5DF"
-	rpcURL := "https://api.s0.t.hmny.io"
+func createWallet() *ecdsa.PrivateKey {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		log.Fatalf("Failed to generate private key: %v", err)
+	}
 
-	CheckBalance(address, rpcURL)
+	privateKeyBytes := crypto.FromECDSA(privateKey)
+	fmt.Printf("New Wallet Private Key: %x\n", privateKeyBytes)
+
+	publicAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
+	fmt.Println("Wallet Address:", publicAddress.Hex())
+
+	return privateKey
+}
+
+func sendTransaction(privateKey *ecdsa.PrivateKey, toAddress string, amount *big.Int, rpcURL string) {
+	nonce := uint64(0)
+	gasLimit := uint64(21000)
+	gasPrice := big.NewInt(1000000000)
+
+	// Create transaction
+	tx := types.NewTransaction(nonce, common.HexToAddress(toAddress), amount, gasLimit, gasPrice, nil)
+
+	// Sign the transaction
+	signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, privateKey)
+	if err != nil {
+		log.Fatalf("Failed to sign transaction: %v", err)
+	}
+
+	// Marshal transaction to RLP encoded form
+	var buf bytes.Buffer
+	signedTx.EncodeRLP(&buf)
+	rawTx := buf.Bytes()
+
+	// Send transaction via RPC
+	payload := RPCPayload{
+		Jsonrpc: "2.0",
+		Method:  "eth_sendRawTransaction",
+		Params:  []string{fmt.Sprintf("0x%x", rawTx)},
+		ID:      1,
+	}
+	transactionHash := sendRPCRequest(payload, rpcURL)
+
+	// Display the transaction hash
+	fmt.Printf("Transaction submitted. Hash: %s\n", transactionHash)
+}
+
+func sendRPCRequest(payload RPCPayload, rpcURL string) string {
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Println("Error marshalling JSON:", err)
+		return ""
+	}
+
+	resp, err := http.Post(rpcURL, "application/json", bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		fmt.Println("Error making request:", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading response body:", err)
+		return ""
+	}
+
+	var rpcResponse map[string]interface{}
+	if err := json.Unmarshal(body, &rpcResponse); err != nil {
+		fmt.Println("Error unmarshalling response JSON:", err)
+		return ""
+	}
+
+	// Extracting transaction hash from the response
+	if hash, ok := rpcResponse["result"].(string); ok {
+		return hash
+	}
+
+	fmt.Println("Unable to extract transaction hash.")
+	return ""
+}
+
+func importWallet() *ecdsa.PrivateKey {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("Enter your private key:")
+	privateKeyHex, _ := reader.ReadString('\n')
+	privateKeyHex = strings.TrimSpace(privateKeyHex)
+
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	if err != nil {
+		log.Fatalf("Invalid private key: %v", err)
+	}
+
+	publicAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
+	fmt.Println("Wallet Address:", publicAddress.Hex())
+
+	return privateKey
+}
+
+func main() {
+	reader := bufio.NewReader(os.Stdin)
+	var privateKey *ecdsa.PrivateKey
+	var publicAddress common.Address
+
+	for {
+		fmt.Println("Choose an option:\n1) Import wallet\n2) Create new wallet")
+		choice, _ := reader.ReadString('\n')
+		choice = strings.TrimSpace(choice)
+
+		switch choice {
+		case "1":
+			privateKey = importWallet()
+			publicAddress = crypto.PubkeyToAddress(privateKey.PublicKey)
+			break
+		case "2":
+			privateKey = createWallet()
+			publicAddress = crypto.PubkeyToAddress(privateKey.PublicKey)
+			break
+		default:
+			fmt.Println("Invalid choice")
+			continue
+		}
+		break
+	}
+
+	for {
+		fmt.Println("Choose an option:\n1) Send tokens\n2) Receive tokens\n3) Check balance")
+		actionChoice, _ := reader.ReadString('\n')
+		actionChoice = strings.TrimSpace(actionChoice)
+
+		switch actionChoice {
+		case "1":
+			fmt.Println("Enter destination address:")
+			toAddress, _ := reader.ReadString('\n')
+			toAddress = strings.TrimSpace(toAddress)
+
+			fmt.Println("Enter amount of ONE to send:")
+			var amount big.Int
+			amountStr, _ := reader.ReadString('\n')
+			amount.SetString(strings.TrimSpace(amountStr), 10)
+
+			rpcURL := "https://api.s0.t.hmny.io"
+			sendTransaction(privateKey, toAddress, &amount, rpcURL)
+		case "2":
+			fmt.Println("Your address to receive tokens:", publicAddress.Hex())
+		case "3":
+			rpcURL := "https://api.s0.t.hmny.io"
+			CheckBalance(publicAddress.Hex(), rpcURL)
+		default:
+			fmt.Println("Invalid choice")
+			continue
+		}
+
+		fmt.Println("Do you want to perform another action? (yes/no)")
+		anotherAction, _ := reader.ReadString('\n')
+		if strings.TrimSpace(anotherAction) != "yes" {
+			break
+		}
+	}
 }

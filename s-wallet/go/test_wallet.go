@@ -84,15 +84,31 @@ func createWallet() *ecdsa.PrivateKey {
 }
 
 func sendTransaction(privateKey *ecdsa.PrivateKey, toAddress string, amount *big.Int, rpcURL string) {
-	nonce := uint64(0)
-	gasLimit := uint64(21000)
-	gasPrice := big.NewInt(1000000000)
+	nonce := uint64(0)                     // Should be the actual nonce of the account
+	gasLimit := uint64(21000)              // Standard gas limit for simple transactions
+	gasPrice := big.NewInt(10000000000000) // Gas price, should be fetched from the blockchain
 
-	// Create transaction
-	tx := types.NewTransaction(nonce, common.HexToAddress(toAddress), amount, gasLimit, gasPrice, nil)
+	// Harmony Mainnet Chain ID
+	chainID := big.NewInt(1666600000)
 
-	// Sign the transaction
-	signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, privateKey)
+	// Convert toAddress from string to common.Address and get its pointer
+	toAddr := common.HexToAddress(toAddress)
+
+	// Construct the transaction data
+	txData := &types.LegacyTx{
+		Nonce:    nonce,
+		To:       &toAddr,
+		Value:    amount,
+		Gas:      gasLimit,
+		GasPrice: gasPrice,
+		Data:     nil,
+	}
+
+	// Create transaction using NewTx
+	tx := types.NewTx(txData)
+
+	// Sign the transaction with the chain ID
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
 	if err != nil {
 		log.Fatalf("Failed to sign transaction: %v", err)
 	}
@@ -135,6 +151,9 @@ func sendRPCRequest(payload RPCPayload, rpcURL string) string {
 		return ""
 	}
 
+	// Log the response for debugging
+	fmt.Printf("RPC Response: %s\n", string(body))
+
 	var rpcResponse map[string]interface{}
 	if err := json.Unmarshal(body, &rpcResponse); err != nil {
 		fmt.Println("Error unmarshalling response JSON:", err)
@@ -144,9 +163,14 @@ func sendRPCRequest(payload RPCPayload, rpcURL string) string {
 	// Extracting transaction hash from the response
 	if hash, ok := rpcResponse["result"].(string); ok {
 		return hash
+	} else {
+		if errorInfo, ok := rpcResponse["error"]; ok {
+			fmt.Printf("Error in RPC response: %v\n", errorInfo)
+		} else {
+			fmt.Println("Transaction hash not found in RPC response.")
+		}
 	}
 
-	fmt.Println("Unable to extract transaction hash.")
 	return ""
 }
 

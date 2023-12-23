@@ -16,9 +16,11 @@ contract ArbitrumBridge {
         locked = false;
     }
 
-    function withdraw(uint256 _amount) noReentrant public {
+    function withdraw(uint256 _amount) public noReentrant {
+        require(_amount > 0, "Amount must be greater than 0");
         // TODO: ensure enough liquidity; revert if not enough liquidity
-
+        require(address(this).balance >= _amount, "Not enough liquidity");
+        
         // TODO: verify user has deposited to HarmonyBridge.sol
 
         payable(msg.sender).transfer(_amount);

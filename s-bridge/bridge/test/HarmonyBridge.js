@@ -10,7 +10,7 @@ describe("HarmonyBridge contract", function () {
     return { harmonyBridge, owner, addr1, addr2 };
   }
 
-  describe("Deposit", function () {
+  describe("deposit", function () {
     it("Should deposit Ether", async function () {
       const { harmonyBridge, addr1 } = await deployHarmonyBridgeFixture();
 

@@ -11,7 +11,7 @@ describe("HarmonyBridge contract", function () {
   }
 
   describe("Deposit", function () {
-    it("Should deposit token", async function () {
+    it("Should deposit Ether", async function () {
       const { harmonyBridge, addr1 } = await deployHarmonyBridgeFixture();
 
       const depositAmount = ethers.parseUnits("10", "ether");

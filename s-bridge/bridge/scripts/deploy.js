@@ -7,6 +7,8 @@ async function main() {
   const harmonyBridge = await ethers.deployContract("HarmonyBridge");
   console.log("HarmonyBridge address:", await harmonyBridge.getAddress());
 
+  const arbitrumBridge = await ethers.deployContract("ArbitrumBridge");
+  console.log("ArbitrumBridge address:", await arbitrumBridge.getAddress());
 }
 
 main()

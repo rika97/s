@@ -7,6 +7,7 @@ contract ArbitrumBridge {
     bool private locked;
 
     event Withdrawl(address indexed user, uint256 amount);
+    event Receive(address indexed user, uint256 amount);
 
     modifier noReentrant() {
         // TOOD: if locked, queue requests
@@ -18,7 +19,7 @@ contract ArbitrumBridge {
 
     function withdraw(uint256 _amount) public noReentrant {
         require(_amount > 0, "Amount must be greater than 0");
-        // TODO: ensure enough liquidity; revert if not enough liquidity
+        // TODO: revert HarmonyBridge.sol transaction if not enough liquidity
         require(address(this).balance >= _amount, "Not enough liquidity");
         
         // TODO: verify user has deposited to HarmonyBridge.sol
@@ -27,4 +28,10 @@ contract ArbitrumBridge {
 
         emit Withdrawl(msg.sender, _amount);
     }
+
+    receive() external payable {
+        emit Receive(msg.sender, msg.value);
+    }
+
+    // TODO: fallback
 }

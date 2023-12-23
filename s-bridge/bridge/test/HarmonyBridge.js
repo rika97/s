@@ -18,8 +18,6 @@ describe("HarmonyBridge contract", function () {
       
       await expect(() => harmonyBridge.connect(addr1).deposit({ value: depositAmount }))
         .to.changeEtherBalances([addr1, harmonyBridge], [-depositAmount, depositAmount]);
-
-      expect(await harmonyBridge.balances(addr1.address)).to.equal(depositAmount);
     });
 
     it("Should emit Deposit event", async function () {

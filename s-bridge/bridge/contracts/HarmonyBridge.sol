@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+// note: supports only ONE (native token)
 contract HarmonyBridge {
+
+    // TODO: receive logic
 
     mapping(address => uint256) public balances;
 
@@ -9,7 +12,7 @@ contract HarmonyBridge {
 
     function deposit() public payable {
         require(msg.value > 0, "Deposit amount must be positive.");
-        // Note: SafeMath.sol for safety
+        // note: SafeMath.sol for safety
         balances[msg.sender] += msg.value;
         emit Deposit(msg.sender, msg.value);
     }

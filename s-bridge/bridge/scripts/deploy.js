@@ -1,10 +1,14 @@
 const { ethers } = require("hardhat");
 
 async function main() {
-  const [deployer] = await ethers.getSigners();
-  console.log("Deploying contracts with the account:", deployer.address);
+  const [owner, trustedSigner] = await ethers.getSigners();
+  console.log("Owner addres:", owner.address);
+  console.log("Trusted Signer addres:", trustedSigner.address);
 
-  const bridge = await ethers.deployContract("Bridge");
+  const Bridge = await ethers.getContractFactory("Bridge");
+  const bridge = await Bridge.deploy(trustedSigner.address);
+  await bridge.waitForDeployment();
+
   console.log("Bridge address:", await bridge.getAddress());
 }
 

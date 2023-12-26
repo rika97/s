@@ -13,10 +13,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
+
+const rpcURL = "https://api.s0.t.hmny.io" // Harmony Mainnet RPC URL (shard 0)
+var chainID = big.NewInt(1666600000)      // Harmony Mainnet Chain ID
 
 // RPCPayload represents the JSON payload for the RPC request
 type RPCPayload struct {
@@ -29,6 +34,48 @@ type RPCPayload struct {
 // RPCResponse represents the JSON response from the RPC request
 type RPCResponse struct {
 	Result string `json:"result"`
+}
+
+// interactWithGnosisSafe initiates the process of checking and approving transactions
+func interactWithGnosisSafe(privateKey *ecdsa.PrivateKey) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("Enter the Gnosis Safe contract address:")
+	contractAddressStr, _ := reader.ReadString('\n')
+	contractAddressStr = strings.TrimSpace(contractAddressStr)
+
+	// Validate and convert the input to an Ethereum address
+	if !common.IsHexAddress(contractAddressStr) {
+		fmt.Println("Invalid address format")
+		return
+	}
+	contractAddress := common.HexToAddress(contractAddressStr)
+
+	// Proceed with checking and approving transactions
+	checkAndApproveGnosisSafeTransactions(privateKey, contractAddress)
+}
+
+// Connects to the Harmony blockchain, interacts with the specified Gnosis Safe contract, and allows the user to approve
+// any pending transactions.
+func checkAndApproveGnosisSafeTransactions(privateKey *ecdsa.PrivateKey, contractAddress common.Address) {
+	client, err := ethclient.Dial(rpcURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to the Harmony client: %v", err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		log.Fatalf("Failed to create authorized transactor: %v", err)
+	}
+
+	// TODO: Implementation for interacting with the Gnosis Safe contract.
+	// create the contract instance, check for pending transactions, submit approvals.
+
+	fmt.Println("You have pending transactions. Do you want to approve? (yes/no)")
+	response, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	response = strings.TrimSpace(response)
+	if response == "yes" {
+		// Approve pending transactions.
+	}
 }
 
 // CheckBalance makes an HTTP POST request to the given RPC URL with the address
@@ -87,9 +134,6 @@ func sendTransaction(privateKey *ecdsa.PrivateKey, toAddress string, amount *big
 	nonce := uint64(0)                     // Should be the actual nonce of the account
 	gasLimit := uint64(21000)              // Standard gas limit for simple transactions
 	gasPrice := big.NewInt(10000000000000) // Gas price, should be fetched from the blockchain
-
-	// Harmony Mainnet Chain ID
-	chainID := big.NewInt(1666600000)
 
 	// Convert toAddress from string to common.Address and get its pointer
 	toAddr := common.HexToAddress(toAddress)
@@ -218,7 +262,7 @@ func main() {
 	}
 
 	for {
-		fmt.Println("Choose an option:\n1) Send tokens\n2) Receive tokens\n3) Check balance")
+		fmt.Println("Choose an option:\n1) Send tokens\n2) Receive tokens\n3) Check balance\n4) Approve Gnosis Safe Transaction")
 		actionChoice, _ := reader.ReadString('\n')
 		actionChoice = strings.TrimSpace(actionChoice)
 
@@ -233,13 +277,14 @@ func main() {
 			amountStr, _ := reader.ReadString('\n')
 			amount.SetString(strings.TrimSpace(amountStr), 10)
 
-			rpcURL := "https://api.s0.t.hmny.io"
 			sendTransaction(privateKey, toAddress, &amount, rpcURL)
 		case "2":
 			fmt.Println("Your address to receive tokens:", publicAddress.Hex())
 		case "3":
-			rpcURL := "https://api.s0.t.hmny.io"
 			CheckBalance(publicAddress.Hex(), rpcURL)
+		case "4":
+			fmt.Println("Interacting with Gnosis Safe")
+			interactWithGnosisSafe(privateKey)
 		default:
 			fmt.Println("Invalid choice")
 			continue

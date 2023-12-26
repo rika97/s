@@ -36,35 +36,22 @@ type RPCResponse struct {
 	Result string `json:"result"`
 }
 
-// interactWithGnosisSafe initiates the process of checking and approving transactions
-func interactWithGnosisSafe(privateKey *ecdsa.PrivateKey) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Enter the Gnosis Safe contract address:")
-	contractAddressStr, _ := reader.ReadString('\n')
-	contractAddressStr = strings.TrimSpace(contractAddressStr)
-
-	// Validate and convert the input to an Ethereum address
-	if !common.IsHexAddress(contractAddressStr) {
-		fmt.Println("Invalid address format")
-		return
-	}
-	contractAddress := common.HexToAddress(contractAddressStr)
-
-	// Proceed with checking and approving transactions
-	checkAndApproveGnosisSafeTransactions(privateKey, contractAddress)
-}
-
 // Connects to the Harmony blockchain, interacts with the specified Gnosis Safe contract, and allows the user to approve
 // any pending transactions.
 func checkAndApproveGnosisSafeTransactions(privateKey *ecdsa.PrivateKey, contractAddress common.Address) {
-	client, err := ethclient.Dial(rpcURL)
+	// client, err := ethclient.Dial(rpcURL)
+	_, err := ethclient.Dial(rpcURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Harmony client: %v", err)
 	}
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
-	if err != nil {
-		log.Fatalf("Failed to create authorized transactor: %v", err)
+	// auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	// if err != nil {
+	// 	log.Fatalf("Failed to create authorized transactor: %v", err)
+	// }
+	_, er := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if er != nil {
+		log.Fatalf("Failed to create authorized transactor: %v", er)
 	}
 
 	// TODO: Implementation for interacting with the Gnosis Safe contract.
@@ -283,8 +270,19 @@ func main() {
 		case "3":
 			CheckBalance(publicAddress.Hex(), rpcURL)
 		case "4":
+			fmt.Println("Enter the Gnosis Safe contract address:")
+			contractAddressStr, _ := reader.ReadString('\n')
+			contractAddressStr = strings.TrimSpace(contractAddressStr)
+
+			// Validate and convert the input to an Ethereum address
+			if !common.IsHexAddress(contractAddressStr) {
+				fmt.Println("Invalid address format")
+				continue
+			}
+			contractAddress := common.HexToAddress(contractAddressStr)
+
 			fmt.Println("Interacting with Gnosis Safe")
-			interactWithGnosisSafe(privateKey)
+			checkAndApproveGnosisSafeTransactions(privateKey, contractAddress)
 		default:
 			fmt.Println("Invalid choice")
 			continue

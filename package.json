@@ -2,5 +2,8 @@
   "dependencies": {
     "@uniswap/sdk-core": "^4.0.10",
     "@uniswap/v3-sdk": "^3.10.0"
+  },
+  "devDependencies": {
+    "hardhat": "^2.19.4"
   }
 }
